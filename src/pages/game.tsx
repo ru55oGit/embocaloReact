@@ -9,11 +9,13 @@ import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import Layout from "../components/Layout";
 import GameBoard from "../components/GameBoard";
 import GoalsCard from "../components/GoalsCard";
+import FoundWordsList from "../components/FoundWordsList";
 import HouseAdBanner from "../ads/HouseAdBanner";
 import RewardedAdModal from "../ads/RewardedAdModal";
 import { useRewardedAd } from "../ads/useRewardedAd";
 import { useEmbocaloGame } from "../hooks/useEmbocaloGame";
 import { NUMBER_GOAL_THRESHOLDS, rollingGoalWindow } from "../game/constants";
+import { scoreForWord } from "../game/variants/words/words";
 import { Variant } from "../game/types";
 import { useLanguage } from "../i18n/LanguageContext";
 import { track } from "../lib/analytics";
@@ -209,7 +211,20 @@ function GamePlaying({ variant }: { variant: Variant }) {
           />
         )}
 
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 1 }}>
+        {variant === "letters" && (
+          <FoundWordsList
+            title={t.wordsListTitle}
+            emptyLabel={t.wordsListEmpty}
+            words={game.foundWords.map((word) => ({ word, points: scoreForWord(word.length) }))}
+          />
+        )}
+
+        {/* width:"100%" explícito: el contenedor de arriba tiene
+            alignItems:"center" (para centrar la card del tablero, que SÍ
+            tiene ancho fijo propio) — sin esto, un hijo sin ancho propio
+            se achica a su contenido en vez de ocupar todo el ancho
+            disponible (mismo padding lateral que el resto de la página). */}
+        <Box sx={{ display: "flex", justifyContent: "center", width: "100%", mt: 1 }}>
           <HouseAdBanner slot="embocalo-game-banner" gameSlug="embocalo" locale={currentLanguage} />
         </Box>
       </Box>

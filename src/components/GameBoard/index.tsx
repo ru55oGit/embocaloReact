@@ -9,7 +9,7 @@ import PathBadge from "../PathBadge";
 import { useEmbocaloGame } from "../../hooks/useEmbocaloGame";
 import { PathEvaluator, usePathSelection } from "../../hooks/usePathSelection";
 import { isValidWord } from "../../game/variants/words/words";
-import { BOARD_HEIGHT, BOARD_WIDTH } from "../../game/hex";
+import { BOARD_HEIGHT, BOARD_WIDTH, CELL_SIZE } from "../../game/hex";
 import { CellValue, Variant } from "../../game/types";
 import { SupportedLanguage, Translation } from "../../i18n/translations";
 
@@ -101,7 +101,15 @@ export default function GameBoard({ variant, language, t, game }: GameBoardProps
           <LetterShooters
             grid={game.grid}
             originY={BOARD_HEIGHT + SHOOTER_MARGIN}
-            positionsX={[BOARD_WIDTH * 0.26, BOARD_WIDTH * 0.74]}
+            // Consonantes un poco más a la derecha — con 0.26/0.74 puro
+            // (matemáticamente simétrico respecto al centro) las flechas
+            // de apuntado quedaban a 15px de su columna más cercana PERO
+            // en sentidos opuestos entre las dos, lo que se veía como
+            // asimetría real a simple vista. No un CELL_SIZE entero
+            // (36px): a la derecha de las consonantes casi no queda
+            // margen antes del borde de la tarjeta — con eso la flechita
+            // ">" terminaba sobresaliendo del borde blanco.
+            positionsX={[BOARD_WIDTH * 0.26, BOARD_WIDTH * 0.74 + CELL_SIZE * 0.55]}
             rowPhase={game.rowPhase}
             language={language}
             vowelsLabel={t.vowelsLabel}

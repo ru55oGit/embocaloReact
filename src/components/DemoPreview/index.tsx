@@ -2,11 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 
 const ACCENT = "#e74c3c";
-// Celdas grandes y 4 filas (no 3 chicas): con el tamaño anterior la
-// grilla quedaba mini arriba a la izquierda de la tarjeta cuadrada, con
-// un hueco enorme vacío abajo — tiene que llenar de verdad ese espacio.
-const CELL = 44;
-const GAP = 6;
+const COLS = 6;
+const ROWS = 4;
+// Proporción del gap respecto a la celda (no un gap fijo en px) — así la
+// grilla entera escala como un bloque, sin que el aire entre burbujas se
+// vea desproporcionado en ningún tamaño.
+const GAP_RATIO = 0.12;
+// Ancho total necesario (en "celdas") para 6 columnas + sus gaps + el
+// corrimiento de media celda que suma la fila impar en el peor caso.
+const WIDTH_IN_CELLS = COLS + (COLS - 1) * GAP_RATIO + 0.5;
+const MIN_CELL = 22;
+const MAX_CELL = 56;
 
 // 4 filas, grilla hexagonal real (las filas "impares" corridas media
 // celda, como el tablero de verdad) — la ÚLTIMA fila (la más cerca del
@@ -25,17 +31,46 @@ const SHOT_ROW = 3;
 const WORD_COLS = [1, 2, 3];
 const SHOT_COL = 3;
 const SHOT_LETTER = "L";
-// Cuánto más abajo del tablero arranca la letra disparada — tiene que
-// viajar y "chocar" contra la fila, no aparecer ya en su lugar.
-const SHOT_TRAVEL_PX = 110;
 
 type Phase = "idle" | "shooting" | "selecting" | "clearing";
+
+// Un tamaño fijo en px nunca anda bien en los dos extremos a la vez: lo
+// bastante chico para no desbordar un celular angosto se ve perdido en
+// una tarjeta de escritorio mucho más ancha (el layout tope en 480px de
+// Layout.tsx solo limita el MÁXIMO, no iguala mobile y desktop). Por eso
+// esto mide su propio contenedor con un ResizeObserver y calcula el
+// tamaño de celda a partir del ancho real disponible, en vez de usar un
+// número fijo.
+function useMeasuredWidth() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (w) setWidth(w);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, width] as const;
+}
 
 // Animación corta (no son 3 variantes en miniatura): un ciclo completo de
 // "disparás una letra que viaja y choca contra el tablero, se arma una
 // palabra, la recorrés con el dedo y se borra" — las acciones reales de
 // la modalidad letras, en loop, para la card de "Jugar" del Home.
 export default function DemoPreview() {
+  const [containerRef, containerWidth] = useMeasuredWidth();
+  // 0.94 de margen de seguridad — sin esto, el redondeo de los cálculos
+  // de abajo podía dejar la última columna pegada contra el borde.
+  const cell = Math.max(MIN_CELL, Math.min(MAX_CELL, (containerWidth * 0.94) / WIDTH_IN_CELLS)) || MIN_CELL;
+  const gap = cell * GAP_RATIO;
+  const shotTravelPx = cell * 2.5;
+
   const [phase, setPhase] = useState<Phase>("idle");
   const [selectCount, setSelectCount] = useState(0);
   const timeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -80,12 +115,15 @@ export default function DemoPreview() {
   }
 
   return (
-    <Box sx={{
-      display: "flex", flexDirection: "column", gap: `${GAP}px`, alignItems: "flex-start",
-      "@media (prefers-reduced-motion: reduce)": { "& *": { transition: "none !important" } },
-    }}>
+    <Box
+      ref={containerRef}
+      sx={{
+        display: "flex", flexDirection: "column", gap: `${gap}px`, alignItems: "flex-start", width: "100%",
+        "@media (prefers-reduced-motion: reduce)": { "& *": { transition: "none !important" } },
+      }}
+    >
       {FILLER.map((row, r) => (
-        <Box key={r} sx={{ display: "flex", gap: `${GAP}px`, ml: r % 2 === 1 ? `${CELL / 2}px` : 0 }}>
+        <Box key={r} sx={{ display: "flex", gap: `${gap}px`, ml: r % 2 === 1 ? `${cell / 2}px` : 0 }}>
           {row.map((_, c) => {
             const content = cellContent(r, c);
             const selected = isSelected(r, c);
@@ -94,7 +132,7 @@ export default function DemoPreview() {
             const fadingOut = clearing && selected;
 
             let transform = "translateY(0) scale(1)";
-            if (hidden) transform = `translateY(${SHOT_TRAVEL_PX}px) scale(0.6)`;
+            if (hidden) transform = `translateY(${shotTravelPx}px) scale(0.6)`;
             else if (fadingOut) transform = "translateY(0) scale(0.4)";
             else if (selected) transform = "translateY(0) scale(1.12)";
 
@@ -102,9 +140,9 @@ export default function DemoPreview() {
               <Box
                 key={c}
                 sx={{
-                  width: CELL, height: CELL, borderRadius: "50%",
+                  width: cell, height: cell, borderRadius: "50%",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontWeight: 800, fontSize: CELL * 0.42,
+                  fontWeight: 800, fontSize: cell * 0.42,
                   backgroundColor: selected ? ACCENT : content ? "#fff" : "#fff3",
                   color: selected ? "#fff" : ACCENT,
                   boxShadow: content ? "0 2px 4px rgba(0,0,0,0.2)" : "none",
