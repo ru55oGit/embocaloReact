@@ -1,0 +1,50 @@
+/* Paleta del hub (misma que encastraloReact) — prototipo sin Layout
+   propio todavía, así que el fondo/tipografía van acá directo. */
+:root {
+  --accent: #e74c3c;
+  --panel: #fff;
+  --cell: #f3f3f3;
+  --ok: #22c55e;
+  --txt: #222;
+  --muted: #888;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  min-height: 100%;
+}
+
+body {
+  font-family: "Nunito", "Roboto", "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: #a34747;
+  min-height: 100vh;
+}
+
+/* Fuera de los 480px centrales (el contenido real, ver Layout), pantallas
+   anchas quedan con esta textura rayada en vez de un color liso — mismo
+   criterio que el resto del hub (encastraloReact incluido). */
+@media (min-width: 900px) {
+  body {
+    background-image: linear-gradient(
+      135deg,
+      #7d6e6e 16.67%,
+      #fff 0,
+      #fff 50%,
+      #7d6e6e 0,
+      #7d6e6e 66.67%,
+      #fff 0,
+      #fff
+    );
+    background-size: 4.24px 4.24px;
+  }
+}
+
+#root {
+  min-height: 100vh;
+}
