@@ -55,7 +55,10 @@ function GamePlaying({ variant }: { variant: Variant }) {
   const { t, currentLanguage } = useLanguage();
   const game = useEmbocaloGame(variant, currentLanguage);
 
-  const initialBestRef = useRef(getBest(variant));
+  // Letras guarda un "mejor puntaje" por idioma (el diccionario cambia
+  // por completo entre es/en/pt) — frutas/números no dependen del idioma.
+  const bestScope = variant === "letters" ? currentLanguage : undefined;
+  const initialBestRef = useRef(getBest(variant, bestScope));
   const gameStartedAtRef = useRef(Date.now());
   const trackedGameOverRef = useRef(false);
 
@@ -71,7 +74,7 @@ function GamePlaying({ variant }: { variant: Variant }) {
       const durationSec = Math.round((Date.now() - gameStartedAtRef.current) / 1000);
       track("game_over", { variant, score: game.score, duration_sec: durationSec });
       if (variant === "letters") {
-        maybeSaveWordsRecord(game.score, game.foundWords);
+        maybeSaveWordsRecord(game.score, game.foundWords, currentLanguage);
       } else if (variant === "numbers") {
         maybeSaveVariantRecord("numbers", game.score, game.numberFloor, game.clearsCount);
       } else {
@@ -105,7 +108,7 @@ function GamePlaying({ variant }: { variant: Variant }) {
   function handleRestart() {
     trackedGameOverRef.current = false;
     gameStartedAtRef.current = Date.now();
-    initialBestRef.current = getBest(variant);
+    initialBestRef.current = getBest(variant, bestScope);
     game.restart();
     track("game_start", { variant });
   }

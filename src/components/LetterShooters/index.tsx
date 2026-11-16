@@ -67,24 +67,25 @@ function LetterShooterUnit({ label, getList, language, grid, originX, originY, h
 
       {/* zIndex por encima del área táctil (grande a propósito) del
           disparador, para que estas flechas sigan recibiendo su propio
-          click sin importar el orden del DOM. */}
+          click sin importar el orden del DOM. Bien separadas de la
+          burbuja (antes quedaban a 2px del borde): un toque un poco
+          desviado buscando cambiar de letra terminaba disparando sin
+          querer. */}
       <IconButton
-        size="small"
         onClick={() => cycle(-1)}
         disabled={disabled}
         aria-label={`${label}: letra anterior`}
-        sx={{ position: "absolute", left: originX - 56, top: originY - 16, color: ACCENT, zIndex: 2 }}
+        sx={{ position: "absolute", left: originX - 68, top: originY - 18, width: 36, height: 36, color: ACCENT, zIndex: 2 }}
       >
-        <ChevronLeftIcon fontSize="small" />
+        <ChevronLeftIcon fontSize="medium" />
       </IconButton>
       <IconButton
-        size="small"
         onClick={() => cycle(1)}
         disabled={disabled}
         aria-label={`${label}: letra siguiente`}
-        sx={{ position: "absolute", left: originX + 24, top: originY - 16, color: ACCENT, zIndex: 2 }}
+        sx={{ position: "absolute", left: originX + 32, top: originY - 18, width: 36, height: 36, color: ACCENT, zIndex: 2 }}
       >
-        <ChevronRightIcon fontSize="small" />
+        <ChevronRightIcon fontSize="medium" />
       </IconButton>
     </>
   );

@@ -16,7 +16,10 @@ const MAX_ANGLE_RAD = (75 * Math.PI) / 180;
 // de atan2(0, -0) (que en JS da π, no 0) y el tiro salía para cualquier
 // lado en vez de derecho hacia arriba.
 const MIN_DRAG_PX = 6;
-const AIM_LINE_LENGTH = 70;
+// El dedo tapa el origen de la línea mientras se apunta — si es corta
+// (70px), queda escondida justo debajo del dedo y no se nota que hay una
+// guía. Bien larga, el tramo de arriba siempre asoma por fuera del dedo.
+const AIM_LINE_LENGTH = 140;
 const FLIGHT_DURATION_MS = 420;
 
 interface HitArea {

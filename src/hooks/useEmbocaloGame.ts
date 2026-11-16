@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FLOATING_DROP_BONUS, GRID_SIZE, INITIAL_ROWS, MIN_TARGET_SUM, NUMBER_GOAL_BONUS_PER_SUM, ROW_DROP_INTERVAL_MS, VISIBLE_ROWS } from "../game/constants";
 import { dropFloatingCells, dropOneRow, initialGrid } from "../game/grid";
+import { hexNeighbors, isRowInBounds, isValidCell } from "../game/hex";
 import { fruitsEngine } from "../game/variants/fruits";
 import { randDigit, sumScore } from "../game/variants/numbers";
 import { randConsonant, randVowel, scoreForWord } from "../game/variants/words/words";
@@ -18,6 +19,23 @@ export interface PopFeedback {
 // pura frecuencia real (mayoría consonantes), al arrancar casi no entrarían
 // palabras formables.
 const INITIAL_VOWEL_RATIO = 0.4;
+
+// `landed` se calculó contra una FOTO de la grilla tomada al disparar —
+// para cuando la animación de vuelo termina (420ms después, ver
+// AimedShooter) esa celda puede haberse ocupado de verdad: bajó el techo
+// mientras volaba, o en letras el otro disparador (vocales/consonantes
+// son independientes) pegó algo ahí primero. Antes esto rechazaba el tiro
+// entero (sonido de error + la bolita desaparecía a mitad de pantalla sin
+// que se note por qué) — en vez de tirar el disparo, se reubica en el
+// vecino hexagonal vacío más cercano, así casi ningún tiro se pierde de
+// verdad.
+function resolveActualLanding(grid: Grid, landed: GridPos, rowPhase: number): GridPos | null {
+  if (grid[landed.r][landed.c] === null) return landed;
+  const alt = hexNeighbors(landed.r, landed.c, rowPhase).find(
+    (n) => isRowInBounds(n.r) && isValidCell(n.r, n.c, rowPhase) && grid[n.r][n.c] === null,
+  );
+  return alt ?? null;
+}
 
 export function useEmbocaloGame(variant: Variant, language: SupportedLanguage) {
   const isLetters = variant === "letters";
@@ -103,7 +121,7 @@ export function useEmbocaloGame(variant: Variant, language: SupportedLanguage) {
   useEffect(() => {
     if (progress < 1 || gameOver) return;
     setProgress(0);
-    const result = dropOneRow(gridRef.current, rollInitial);
+    const result = dropOneRow(gridRef.current, rollInitial, rowPhaseRef.current);
     setGrid(result.grid);
     if (result.gameOver) {
       setGameOver(true);
@@ -151,19 +169,16 @@ export function useEmbocaloGame(variant: Variant, language: SupportedLanguage) {
       if (gameOver) return;
       const grid = gridRef.current;
 
-      // Defensivo: `landed` se calculó contra una foto de la grilla que
-      // puede haber quedado vieja (ej. si el techo bajó mientras la
-      // bolita todavía estaba volando/apuntando) — si esa celda ya no
-      // está vacía en la grilla actual, no hay que pisar lo que haya ahí.
-      if (grid[landed.r][landed.c] !== null) {
+      const target = resolveActualLanding(grid, landed, rowPhaseRef.current);
+      if (!target) {
         playErrorSound();
         return;
       }
 
       const withNew = grid.map((r) => [...r]);
-      withNew[landed.r][landed.c] = value;
+      withNew[target.r][target.c] = value;
 
-      const result = fruitsEngine.resolveLanding(withNew, landed, rowPhaseRef.current);
+      const result = fruitsEngine.resolveLanding(withNew, target, rowPhaseRef.current);
       if (result.popped.length > 0) {
         setClearsCount((c) => c + 1);
         setFruitHighlight((h) => Math.max(h, result.popped.length));
@@ -186,12 +201,13 @@ export function useEmbocaloGame(variant: Variant, language: SupportedLanguage) {
     (landed: GridPos, value: CellValue) => {
       if (gameOver) return;
       const grid = gridRef.current;
-      if (grid[landed.r][landed.c] !== null) {
+      const target = resolveActualLanding(grid, landed, rowPhaseRef.current);
+      if (!target) {
         playErrorSound();
         return;
       }
       const withNew = grid.map((r) => [...r]);
-      withNew[landed.r][landed.c] = value;
+      withNew[target.r][target.c] = value;
       setGrid(withNew);
       if (isNumbers) setNextValue(randDigit());
     },

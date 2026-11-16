@@ -6,7 +6,7 @@ export const INITIAL_ROWS = 3;
 
 // Cada vez que se completa la barra, toda la grilla baja una fila y se
 // inserta una nueva arriba.
-export const ROW_DROP_INTERVAL_MS = 20_000;
+export const ROW_DROP_INTERVAL_MS = 30_000;
 
 // Bonus por cada burbuja que cae "flotando" (sin conexión al techo)
 // después de un pop — ver dropFloatingCells en grid.ts.

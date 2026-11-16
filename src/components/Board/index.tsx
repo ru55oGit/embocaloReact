@@ -1,7 +1,7 @@
 import { RefObject } from "react";
 import Box from "@mui/material/Box";
 import { CellValue, Grid, GridPos } from "../../game/types";
-import { BOARD_HEIGHT, BOARD_WIDTH, CELL_SIZE, cellCenter } from "../../game/hex";
+import { BOARD_HEIGHT, BOARD_WIDTH, CELL_SIZE, cellCenter, isValidCell } from "../../game/hex";
 import { ACCENT } from "../boardLayout";
 
 interface BoardProps {
@@ -39,6 +39,10 @@ export default function Board({ grid, cellLabel, rowPhase, boardRef, onPointerDo
     >
       {grid.map((row, r) =>
         row.map((value, c) => {
+          // Las filas "impares" tienen una columna menos (ver isValidCell
+          // en hex.ts) — sin este chequeo quedaba una burbuja fantasma
+          // sobresaliendo del borde derecho del tablero.
+          if (!isValidCell(r, c, rowPhase)) return null;
           const { x, y } = cellCenter(r, c, rowPhase);
           const selected = isSelected(selectedCells, r, c);
           return (

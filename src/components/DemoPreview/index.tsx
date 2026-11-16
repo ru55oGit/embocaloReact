@@ -2,24 +2,32 @@ import { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 
 const ACCENT = "#e74c3c";
-const CELL = 34;
-const GAP = 4;
+// Celdas grandes y 4 filas (no 3 chicas): con el tamaño anterior la
+// grilla quedaba mini arriba a la izquierda de la tarjeta cuadrada, con
+// un hueco enorme vacío abajo — tiene que llenar de verdad ese espacio.
+const CELL = 44;
+const GAP = 6;
 
-// 3 filas, grilla hexagonal real (la fila del medio corrida media celda,
-// como el tablero de verdad) — la fila del medio arma "SOL" en las
-// columnas 1-2-3; la columna 3 arranca vacía y la completa el disparo.
+// 4 filas, grilla hexagonal real (las filas "impares" corridas media
+// celda, como el tablero de verdad) — la ÚLTIMA fila (la más cerca del
+// disparador) arma "SOL" en las columnas 1-2-3; la columna 3 arranca
+// vacía y la completa el disparo. Tiene que ser la última fila, no una
+// del medio: si no, la burbuja que sube parece atravesar una fila de
+// abajo para llegar a esta, en vez de chocar contra la primera que
+// encuentra.
 const FILLER: (string | null)[][] = [
-  ["R", "A", "I", "R", "S"],
-  ["P", "S", "O", null, "A"],
-  ["J", "E", "N", "J", "M"],
+  ["R", "A", "I", "R", "S", "T"],
+  ["J", "E", "N", "J", "M", "D"],
+  ["Z", "Q", "W", "X", "Y", "K"],
+  ["P", "S", "O", null, "A", "B"],
 ];
-const SHOT_ROW = 1;
+const SHOT_ROW = 3;
 const WORD_COLS = [1, 2, 3];
 const SHOT_COL = 3;
 const SHOT_LETTER = "L";
 // Cuánto más abajo del tablero arranca la letra disparada — tiene que
 // viajar y "chocar" contra la fila, no aparecer ya en su lugar.
-const SHOT_TRAVEL_PX = 90;
+const SHOT_TRAVEL_PX = 110;
 
 type Phase = "idle" | "shooting" | "selecting" | "clearing";
 

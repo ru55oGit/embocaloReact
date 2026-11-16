@@ -89,12 +89,15 @@ export default function Home() {
     const refresh = () => {
       setNumbersRecord(getVariantRecord("numbers"));
       setFruitsRecord(getVariantRecord("fruits"));
-      setWordsRecord(getWordsRecord());
+      // El récord de letras es por idioma (el diccionario cambia por
+      // completo entre es/en/pt) — hay que releerlo también cuando el
+      // jugador cambia de idioma, no solo al volver a enfocar la pestaña.
+      setWordsRecord(getWordsRecord(currentLanguage));
     };
     refresh();
     window.addEventListener("focus", refresh);
     return () => window.removeEventListener("focus", refresh);
-  }, []);
+  }, [currentLanguage]);
 
   const daysSincePlayed = getDaysSinceLastPlayed();
   const nowHour = new Date().getHours();
@@ -164,17 +167,19 @@ export default function Home() {
           <Box sx={{ flexShrink: 0, borderRadius: "8px", overflow: "hidden", backgroundColor: "#f3f3f3", p: 0.5 }}>
             <CategoryPreview variant={kind} size={18} />
           </Box>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, minWidth: 0 }}>
+          {/* Sin alignItems propio: hereda el stretch default del row de
+              arriba para igualar el alto de la miniatura, y acá adentro
+              space-between reparte el label arriba y el puntaje abajo —
+              el mismo número ya dice "puntos", no hace falta repetirlo
+              chico debajo. */}
+          <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "space-between", minWidth: 0 }}>
             <Typography sx={{ fontSize: 13, fontWeight: 800, color: "#888", textTransform: "uppercase", letterSpacing: "0.5px" }}>
               {label}
             </Typography>
             {record ? (
-              <>
-                <Typography sx={{ fontSize: 42, fontWeight: 900, color: ACCENT, fontFamily: "monospace" }}>
-                  {record.score}
-                </Typography>
-                <Typography sx={{ fontSize: 13, color: "#888" }}>{t.recordScoreCaption(record.score)}</Typography>
-              </>
+              <Typography sx={{ fontSize: 42, fontWeight: 900, color: ACCENT, fontFamily: "monospace", lineHeight: 1 }}>
+                {record.score}
+              </Typography>
             ) : (
               <Typography sx={{ fontSize: 13, color: "#888" }}>{t.recordEmptyBody}</Typography>
             )}
@@ -252,15 +257,16 @@ export default function Home() {
         <Typography sx={{ color: "#fff", fontSize: 24, fontWeight: 700, lineHeight: 1.4 }}>{t.readyToPlayMessage}</Typography>
 
         {/* Card de juego: animación de la mecánica real de letras (disparo
-            + selección de palabra con swipe) + botón Jugar — cuadrada, no
-            un rectángulo apaisado. */}
+            + selección de palabra con swipe) + botón Jugar. La card
+            CUADRADA es la interna (gris, el "tablero" de la demo) — la
+            de afuera (coral) solo la envuelve y se achica a su alto real. */}
         <Box sx={{
-          width: "100%", aspectRatio: "1 / 1", borderRadius: "24px", backgroundColor: CARD_BG,
+          width: "100%", borderRadius: "24px", backgroundColor: CARD_BG,
           p: 2, boxShadow: "0 12px 24px rgba(0,0,0,0.18)",
           display: "flex", flexDirection: "column",
         }}>
           <Box sx={{
-            flex: 1, minHeight: 0, width: "100%", borderRadius: "16px", backgroundColor: "#f3f3f3",
+            width: "100%", aspectRatio: "1 / 1", borderRadius: "16px", backgroundColor: "#f3f3f3",
             mb: 2, display: "flex", alignItems: "flex-start", justifyContent: "center", pt: 2,
           }}>
             <DemoPreview />
@@ -363,9 +369,6 @@ export default function Home() {
                 <>
                   <Typography sx={{ fontSize: 42, fontWeight: 900, color: ACCENT, fontFamily: "monospace" }}>
                     {wordsRecord.score}
-                  </Typography>
-                  <Typography sx={{ fontSize: 13, color: "#888" }}>
-                    {t.recordScoreCaption(wordsRecord.score)}
                   </Typography>
                   {wordsRecord.wordsFound > 0 && (
                     <Typography sx={{ fontSize: 13, color: "#888" }}>

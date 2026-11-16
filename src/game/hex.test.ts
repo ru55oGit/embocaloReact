@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { hexNeighbors } from "./hex";
+import { hexNeighbors, isValidCell, nearestCell } from "./hex";
+import { GRID_SIZE } from "./constants";
 
 function has(neighbors: ReturnType<typeof hexNeighbors>, r: number, c: number): boolean {
   return neighbors.some((n) => n.r === r && n.c === c);
@@ -35,5 +36,34 @@ describe("hexNeighbors", () => {
 
   it("rowPhase=2 (una vuelta completa) vuelve a dar la misma tabla que rowPhase=0", () => {
     expect(hexNeighbors(4, 4, 2)).toEqual(hexNeighbors(4, 4, 0));
+  });
+});
+
+describe("isValidCell", () => {
+  it("la última columna es válida en una fila par, pero no en una impar", () => {
+    expect(isValidCell(0, GRID_SIZE - 1, 0)).toBe(true);
+    expect(isValidCell(1, GRID_SIZE - 1, 0)).toBe(false);
+  });
+
+  it("rowPhase invierte cuál fila física es la impar", () => {
+    expect(isValidCell(0, GRID_SIZE - 1, 1)).toBe(false);
+    expect(isValidCell(1, GRID_SIZE - 1, 1)).toBe(true);
+  });
+});
+
+describe("nearestCell", () => {
+  it("clampea la columna al máximo de una fila par (GRID_SIZE - 1)", () => {
+    const { r, c } = nearestCell(10_000, 18, 0);
+    expect(r).toBe(0);
+    expect(c).toBe(GRID_SIZE - 1);
+  });
+
+  it("clampea la columna al máximo de una fila impar (una menos que la par)", () => {
+    // rowPhase=1 vuelve "impar" a la fila 0 (ver hexNeighbors.test más
+    // arriba) — ahí el máximo tiene que ser una columna menos.
+    const { r, c } = nearestCell(10_000, 18, 1);
+    expect(r).toBe(0);
+    expect(c).toBe(GRID_SIZE - 2);
+    expect(isValidCell(r, c, 1)).toBe(true);
   });
 });

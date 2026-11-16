@@ -12,8 +12,20 @@ import { GridPos } from "./types";
 // `rowPhase` (0 o 1) es cuántas veces bajó el techo, módulo 2: sumarlo a
 // `r` antes de mirar la paridad mantiene la identidad física de cada
 // celda estable aunque su índice de array se corra.
-function isOddRow(r: number, rowPhase: number): boolean {
+export function isOddRow(r: number, rowPhase: number): boolean {
   return (r + rowPhase) % 2 === 1;
+}
+
+// Las filas "impares" (corridas media celda) tienen una columna MENOS que
+// las pares — mismo criterio que cualquier bubble-shooter real: sin esto,
+// la fila corrida tenía una 8ª burbuja fantasma que sobresalía del ancho
+// real del tablero, y al bajar el techo (que invierte qué filas son
+// "impares") toda la grilla parecía angostarse/ensancharse de golpe en
+// vez de sentirse estable.
+export function isValidCell(r: number, c: number, rowPhase: number): boolean {
+  if (c < 0 || c >= GRID_SIZE) return false;
+  if (isOddRow(r, rowPhase) && c === GRID_SIZE - 1) return false;
+  return true;
 }
 
 export function hexNeighbors(r: number, c: number, rowPhase: number): GridPos[] {
@@ -39,7 +51,10 @@ export const CELL_SIZE = 36; // diámetro de cada burbuja
 // diámetro entero como en una grilla cuadrada — así las burbujas de una
 // fila encajan en los huecos de la fila vecina.
 export const ROW_HEIGHT = CELL_SIZE * (Math.sqrt(3) / 2);
-export const BOARD_WIDTH = GRID_SIZE * CELL_SIZE + CELL_SIZE / 2;
+// Ancho de una fila PAR (la más larga, GRID_SIZE columnas completas) — las
+// impares, con una columna menos, quedan centradas adentro de este mismo
+// ancho gracias al offset de media celda (ver rowOffsetX/isValidCell).
+export const BOARD_WIDTH = GRID_SIZE * CELL_SIZE;
 export const BOARD_HEIGHT = VISIBLE_ROWS * ROW_HEIGHT + CELL_SIZE / 2;
 
 function rowOffsetX(r: number, rowPhase: number): number {
@@ -66,7 +81,8 @@ export function nearestCell(x: number, y: number, rowPhase: number): GridPos {
   const r = Math.round((y - CELL_SIZE / 2) / ROW_HEIGHT) || 0;
   const offset = rowOffsetX(r, rowPhase);
   const c = Math.round((x - offset - CELL_SIZE / 2) / CELL_SIZE) || 0;
-  return { r, c: Math.max(0, Math.min(GRID_SIZE - 1, c)) };
+  const maxCol = isOddRow(r, rowPhase) ? GRID_SIZE - 2 : GRID_SIZE - 1;
+  return { r, c: Math.max(0, Math.min(maxCol, c)) };
 }
 
 export function isRowInBounds(r: number): boolean {
