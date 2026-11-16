@@ -20,6 +20,7 @@ import { Variant } from "../game/types";
 import { getDaysSinceLastPlayed } from "../utils/lastPlayedState";
 import { getVariantRecord, VariantRunRecord } from "../utils/variantRecordState";
 import { getWordsRecord, WordsRecord } from "../utils/wordsRecordState";
+import { buildEmbocaloRecordPngFile } from "../utils/shareImage";
 
 const ACCENT = "#e74c3c";
 const CARD_BG = "#eb6f62";
@@ -112,28 +113,81 @@ export default function Home() {
     navigate(`/game?variant=${variant}`);
   }
 
-  function whatsappShareUrl(text: string): string {
-    return `https://wa.me/?text=${encodeURIComponent(`${text} ${SHARE_URL}`)}`;
+  const [sharingRecord, setSharingRecord] = useState(false);
+  const canShareRecord = typeof navigator !== "undefined" && typeof navigator.share === "function";
+
+  // Arma la imagen real del récord (ver shareImage.ts) y la comparte con
+  // navigator.share — un link de wa.me solo puede mandar texto, nunca una
+  // imagen adjunta (reporte real: "el share de Embocalo no tiene la
+  // tarjeta como el de Encastralo").
+  async function handleShareRecord(shareVariant: Variant, method: "whatsapp" | "facebook") {
+    if (!canShareRecord || sharingRecord) return;
+
+    let scoreValue: string;
+    let captions: string[];
+    let words: string[] = [];
+    let wordsSectionLabel: string | undefined;
+
+    if (shareVariant === "letters" && wordsRecord) {
+      scoreValue = String(wordsRecord.score);
+      captions = [t.recordScoreCaption(wordsRecord.score)];
+      if (wordsRecord.wordsFound > 0) captions.push(t.recordWordsCaption(wordsRecord.wordsFound));
+      if (wordsRecord.longestWord) captions.push(t.recordLongestWordCaption(wordsRecord.longestWord));
+      words = wordsRecord.words ?? [];
+      wordsSectionLabel = words.length > 0 ? `${t.wordsListTitle.toUpperCase()} (${words.length})` : undefined;
+    } else if (shareVariant === "numbers" && numbersRecord) {
+      scoreValue = String(numbersRecord.score);
+      captions = [t.recordScoreCaption(numbersRecord.score)];
+      if (numbersRecord.clears > 0) {
+        captions.push(t.recordNumberHighlightCaption(numbersRecord.highlight));
+        captions.push(t.recordNumberClearsCaption(numbersRecord.clears));
+      }
+    } else if (shareVariant === "fruits" && fruitsRecord) {
+      scoreValue = String(fruitsRecord.score);
+      captions = [t.recordScoreCaption(fruitsRecord.score)];
+      if (fruitsRecord.clears > 0) {
+        captions.push(t.recordFruitHighlightCaption(fruitsRecord.highlight));
+        captions.push(t.recordFruitClearsCaption(fruitsRecord.clears));
+      }
+    } else {
+      return;
+    }
+
+    setSharingRecord(true);
+    track("share", { method, context: "record", variant: shareVariant });
+    try {
+      const imageFile = await buildEmbocaloRecordPngFile(
+        { title: t.recordTitle, scoreValue, captions, wordsSectionLabel, words },
+        "embocalo-record.png",
+      );
+      const shareData: ShareData = {
+        title: "Embocalo",
+        text: `${t.shareRecordText(Number(scoreValue))}\n${SHARE_URL}`,
+      };
+      if (imageFile && (!navigator.canShare || navigator.canShare({ files: [imageFile] }))) {
+        shareData.files = [imageFile];
+      }
+      await navigator.share(shareData);
+    } catch {
+      // Canceló el panel de compartir sin elegir nada.
+    } finally {
+      setSharingRecord(false);
+    }
   }
 
-  function facebookShareUrl(): string {
-    return `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(SHARE_URL)}`;
-  }
-
-  function renderShareButtons(shareVariant: Variant, score: number) {
-    const text = t.shareRecordText(score);
+  function renderShareButtons(shareVariant: Variant) {
+    if (!canShareRecord) return null;
     return (
       <Box sx={{ display: "flex", justifyContent: "center", gap: 1.5, mt: 1.5 }}>
         <Box
-          component="a"
-          href={whatsappShareUrl(text)}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => track("share", { method: "whatsapp", context: "record", variant: shareVariant })}
+          component="button"
+          onClick={() => handleShareRecord(shareVariant, "whatsapp")}
+          disabled={sharingRecord}
           aria-label="Compartir por WhatsApp"
           sx={{
             display: "grid", placeItems: "center", width: 44, height: 44, borderRadius: "50%",
-            backgroundColor: "#25D366", color: "#fff",
+            backgroundColor: "#25D366", color: "#fff", border: "none", cursor: "pointer",
+            opacity: sharingRecord ? 0.6 : 1,
           }}
         >
           <svg viewBox="0 0 24 24" width={22} height={22} fill="currentColor">
@@ -141,15 +195,14 @@ export default function Home() {
           </svg>
         </Box>
         <Box
-          component="a"
-          href={facebookShareUrl()}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => track("share", { method: "facebook", context: "record", variant: shareVariant })}
+          component="button"
+          onClick={() => handleShareRecord(shareVariant, "facebook")}
+          disabled={sharingRecord}
           aria-label="Compartir por Facebook"
           sx={{
             display: "grid", placeItems: "center", width: 44, height: 44, borderRadius: "50%",
-            backgroundColor: "#1877F2", color: "#fff",
+            backgroundColor: "#1877F2", color: "#fff", border: "none", cursor: "pointer",
+            opacity: sharingRecord ? 0.6 : 1,
           }}
         >
           <svg viewBox="0 0 24 24" width={22} height={22} fill="currentColor">
@@ -195,7 +248,7 @@ export default function Home() {
             </Typography>
           </Box>
         )}
-        {record && renderShareButtons(kind, record.score)}
+        {record && renderShareButtons(kind)}
       </Box>
     );
   }
@@ -394,7 +447,7 @@ export default function Home() {
                       ))}
                     </Box>
                   )}
-                  {renderShareButtons("letters", wordsRecord.score)}
+                  {renderShareButtons("letters")}
                 </>
               ) : (
                 <Typography sx={{ fontSize: 13, color: "#888" }}>{t.recordEmptyBody}</Typography>
