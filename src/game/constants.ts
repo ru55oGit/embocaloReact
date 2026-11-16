@@ -8,6 +8,21 @@ export const INITIAL_ROWS = 3;
 // inserta una nueva arriba.
 export const ROW_DROP_INTERVAL_MS = 30_000;
 
+// Letras y números: cada vez que se cumplen SPEEDUP_MILESTONE_COUNT
+// palabras/metas más, el intervalo de bajada se acorta en SPEEDUP_STEP_MS
+// — la dificultad sube de a poco con la partida en vez de quedarse plana
+// (reporte real: "muy fácil"). Con un piso (MIN_ROW_DROP_INTERVAL_MS)
+// para que nunca se vuelva injugable por una partida larga.
+export const SPEEDUP_MILESTONE_COUNT = 10;
+export const SPEEDUP_STEP_MS = 1_000;
+export const MIN_ROW_DROP_INTERVAL_MS = 10_000;
+
+// Últimos segundos antes de que baje el techo: la barra y el chip de
+// tiempo pasan a rojo y laten — mismo criterio que el reloj de
+// Encastralo (ahí son los últimos 30s de 10:00; acá el ciclo es mucho
+// más corto, por eso el umbral es chico).
+export const ROW_DROP_CRITICAL_SEC = 5;
+
 // Bonus por cada burbuja que cae "flotando" (sin conexión al techo)
 // después de un pop — ver dropFloatingCells en grid.ts.
 export const FLOATING_DROP_BONUS = 5;
@@ -29,11 +44,11 @@ export const VOWELS = ["A", "E", "I", "O", "U"];
 export const MIN_TARGET_SUM = 10;
 export const MIN_PATH_LENGTH_NUMBERS = 2;
 export const NUMBER_GOAL_BONUS_PER_SUM = 100;
-// Metas que se muestran en la card "METAS" — mismos valores que
-// encastraloReact. No tienen techo real: una vez que el piso llega al
-// último umbral de la tanda actual, la tanda siguiente (26-40, 41-55...)
+// Metas que se muestran en la card "METAS" — 10 por tanda (no 15, pedido
+// explícito). No tienen techo real: una vez que el piso llega al último
+// umbral de la tanda actual, la tanda siguiente (21-30, 31-40...)
 // reemplaza a esta en la UI — ver rollingGoalWindow.
-export const NUMBER_GOAL_THRESHOLDS = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25];
+export const NUMBER_GOAL_THRESHOLDS = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 
 // La rotación pasa ni bien `achieved` toca el tope de la tanda actual (no
 // recién al superarlo) — si no, hay un instante en que la tanda entera

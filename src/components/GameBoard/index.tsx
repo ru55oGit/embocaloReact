@@ -10,6 +10,7 @@ import { useEmbocaloGame } from "../../hooks/useEmbocaloGame";
 import { PathEvaluator, usePathSelection } from "../../hooks/usePathSelection";
 import { isValidWord } from "../../game/variants/words/words";
 import { BOARD_HEIGHT, BOARD_WIDTH, CELL_SIZE } from "../../game/hex";
+import { ROW_DROP_CRITICAL_SEC } from "../../game/constants";
 import { CellValue, Variant } from "../../game/types";
 import { SupportedLanguage, Translation } from "../../i18n/translations";
 
@@ -65,10 +66,12 @@ export default function GameBoard({ variant, language, t, game }: GameBoardProps
   });
 
   const hintText = game.isNumbers ? t.hintNumbers(game.numberFloor) : game.isLetters ? t.hintLetters : t.hintFruits;
+  const remainingSec = (game.rowDropIntervalMs * (1 - game.progress)) / 1000;
+  const critical = remainingSec <= ROW_DROP_CRITICAL_SEC;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5, width: "100%" }}>
-      <ProgressBar progress={game.progress} />
+      <ProgressBar progress={game.progress} critical={critical} />
       <Typography sx={{ color: "rgba(255,255,255,0.75)", fontSize: 13, textAlign: "center", px: 2 }}>{hintText}</Typography>
 
       {/* Tablero + disparador(es) comparten el mismo sistema de
@@ -156,6 +159,17 @@ export default function GameBoard({ variant, language, t, game }: GameBoardProps
               fontWeight: 800, fontSize: 20, boxShadow: "0 6px 16px rgba(0,0,0,0.3)", textAlign: "center",
             }}>
               {game.popFeedback.label ?? `+${game.popFeedback.points}`}
+            </Typography>
+          </Box>
+        )}
+
+        {game.errorMessage && (
+          <Box sx={{ position: "absolute", top: 0, left: 0, width: BOARD_WIDTH, height: BOARD_HEIGHT, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", px: 2 }}>
+            <Typography sx={{
+              backgroundColor: "rgba(0,0,0,0.85)", color: "#fff", px: 2, py: 1, borderRadius: 999,
+              fontWeight: 700, fontSize: 14, boxShadow: "0 6px 16px rgba(0,0,0,0.3)", textAlign: "center",
+            }}>
+              {game.errorMessage}
             </Typography>
           </Box>
         )}

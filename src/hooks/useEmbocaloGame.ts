@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FLOATING_DROP_BONUS, GRID_SIZE, INITIAL_ROWS, MIN_TARGET_SUM, NUMBER_GOAL_BONUS_PER_SUM, ROW_DROP_INTERVAL_MS, VISIBLE_ROWS } from "../game/constants";
+import { FLOATING_DROP_BONUS, GRID_SIZE, INITIAL_ROWS, MIN_ROW_DROP_INTERVAL_MS, MIN_TARGET_SUM, NUMBER_GOAL_BONUS_PER_SUM, ROW_DROP_INTERVAL_MS, SPEEDUP_MILESTONE_COUNT, SPEEDUP_STEP_MS, VISIBLE_ROWS } from "../game/constants";
 import { dropFloatingCells, dropOneRow, initialGrid } from "../game/grid";
 import { hexNeighbors, isRowInBounds, isValidCell } from "../game/hex";
 import { fruitsEngine } from "../game/variants/fruits";
 import { randDigit, sumScore } from "../game/variants/numbers";
 import { randConsonant, randVowel, scoreForWord } from "../game/variants/words/words";
 import { CellValue, Grid, GridPos, Variant } from "../game/types";
-import { SupportedLanguage } from "../i18n/translations";
+import { SupportedLanguage, TRANSLATIONS } from "../i18n/translations";
 import { playErrorSound, playSuccessSound } from "../utils/sound";
 
 export interface PopFeedback {
@@ -60,8 +60,22 @@ export function useEmbocaloGame(variant: Variant, language: SupportedLanguage) {
   const [paused, setPaused] = useState(false);
   // 0..1, cuánto se llenó la barra de progreso.
   const [progress, setProgress] = useState(0);
+  // Solo baja en letras/números (cada SPEEDUP_MILESTONE_COUNT palabras o
+  // metas) — ver clearWordPath/clearNumberPath.
+  const [rowDropIntervalMs, setRowDropIntervalMs] = useState(ROW_DROP_INTERVAL_MS);
   const [popFeedback, setPopFeedback] = useState<PopFeedback | null>(null);
   const popFeedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Mensaje de error transitorio (ej. "Ya usaste SOL") — antes un intento
+  // inválido solo sonaba feo sin decir por qué, y el jugador no entendía
+  // por qué se bloqueaba si la palabra existía de verdad.
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const errorMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showErrorMessage(message: string) {
+    setErrorMessage(message);
+    if (errorMessageTimeoutRef.current) clearTimeout(errorMessageTimeoutRef.current);
+    errorMessageTimeoutRef.current = setTimeout(() => setErrorMessage(null), 1600);
+  }
 
   // Cuántas veces bajó el techo, módulo 2 — ver hex.ts. Cada bajada corre
   // todos los índices de fila en 1, así que hay que compensar la paridad
@@ -105,10 +119,10 @@ export function useEmbocaloGame(variant: Variant, language: SupportedLanguage) {
       const now = Date.now();
       const elapsed = now - tickRef.current;
       tickRef.current = now;
-      setProgress((prev) => prev + elapsed / ROW_DROP_INTERVAL_MS);
+      setProgress((prev) => prev + elapsed / rowDropIntervalMs);
     }, 100);
     return () => clearInterval(id);
-  }, [gameOver, paused]);
+  }, [gameOver, paused, rowDropIntervalMs]);
 
   // Espejo síncrono para los efectos/callbacks de abajo, que no deben
   // depender de un closure de un render particular.
@@ -224,10 +238,46 @@ export function useEmbocaloGame(variant: Variant, language: SupportedLanguage) {
         playErrorSound();
         return;
       }
-      setFoundWords((words) => [...words, word]);
-      clearCellsAndSettle(gridRef.current, path, scoreForWord(word.length), word);
+
+      // `path`/`word` se calcularon en usePathSelection contra una FOTO
+      // de la grilla tomada al soltar el dedo — si el techo bajó justo en
+      // el medio del swipe (reporte real: "justo cuando se termina el
+      // tiempo"), para cuando esto se ejecuta esas coordenadas ya no
+      // tienen las mismas letras. Sin este chequeo, la palabra se
+      // registraba como encontrada (bloqueando repetirla) pero el borrado
+      // nulaba celdas equivocadas — no se veía borrar nada de verdad.
+      const grid = gridRef.current;
+      const freshValues = path.map(({ r, c }) => grid[r]?.[c]);
+      if (freshValues.join("") !== word || freshValues.some((v) => v === null || v === undefined)) {
+        playErrorSound();
+        return;
+      }
+
+      // Ya se formó esta misma palabra antes en esta partida — no vale
+      // volver a cobrarla ni contarla de nuevo (reporte real: "muy
+      // fácil" en parte era por esto, repetir la misma palabra una y
+      // otra vez).
+      if (foundWords.includes(word)) {
+        playErrorSound();
+        showErrorMessage(TRANSLATIONS[language].duplicateWordMessage(word));
+        return;
+      }
+      const next = [...foundWords, word];
+      setFoundWords(next);
+
+      // Cada SPEEDUP_MILESTONE_COUNT palabras, el techo baja más rápido —
+      // la dificultad sube con la partida en vez de quedarse plana. El
+      // aviso ("¡Formaste 10 palabras! -1s") reemplaza por esta vez al
+      // popup normal de la palabra — sin avisar, el jugador no se daba
+      // cuenta de por qué de golpe se le hacía más difícil.
+      const isMilestone = next.length % SPEEDUP_MILESTONE_COUNT === 0;
+      if (isMilestone) {
+        setRowDropIntervalMs((ms) => Math.max(MIN_ROW_DROP_INTERVAL_MS, ms - SPEEDUP_STEP_MS));
+      }
+      const label = isMilestone ? TRANSLATIONS[language].speedupMilestoneMessage(next.length) : word;
+      clearCellsAndSettle(gridRef.current, path, scoreForWord(word.length), label);
     },
-    [gameOver],
+    [gameOver, foundWords, language],
   );
 
   // Números: a diferencia de palabras, acá sí hace falta recalcular la
@@ -243,15 +293,35 @@ export function useEmbocaloGame(variant: Variant, language: SupportedLanguage) {
         return;
       }
       const grid = gridRef.current;
+      // Mismo caso que letras: si el techo bajó justo en el medio del
+      // swipe, alguna celda del camino puede haber quedado vacía (o con
+      // otro número) — sin este chequeo, sumar `null` daba NaN y el
+      // camino quedaba en un estado raro en vez de rechazarse limpio.
+      if (path.some(({ r, c }) => grid[r]?.[c] == null)) {
+        playErrorSound();
+        return;
+      }
       const sum = path.reduce((acc, { r, c }) => acc + (grid[r][c] as number), 0);
       const floor = numberFloorRef.current;
       const isNewGoal = sum === floor + 1;
       const basePoints = sumScore(path.length) + (isNewGoal ? NUMBER_GOAL_BONUS_PER_SUM * (floor + 1) : 0);
-      if (isNewGoal) setNumberFloor((f) => f + 1);
+
+      // Misma lógica que letras: cada SPEEDUP_MILESTONE_COUNT metas
+      // cumplidas, el techo baja más rápido — y el mismo aviso reemplaza
+      // por esta vez al popup normal de "¡Meta X!".
+      let label = isNewGoal ? `¡Meta ${floor + 1}!` : `Σ ${sum}`;
+      if (isNewGoal) {
+        setNumberFloor((f) => f + 1);
+        const goalsCompleted = floor + 1 - MIN_TARGET_SUM;
+        if (goalsCompleted % SPEEDUP_MILESTONE_COUNT === 0) {
+          setRowDropIntervalMs((ms) => Math.max(MIN_ROW_DROP_INTERVAL_MS, ms - SPEEDUP_STEP_MS));
+          label = TRANSLATIONS[language].goalSpeedupMessage(goalsCompleted);
+        }
+      }
       setClearsCount((c) => c + 1);
-      clearCellsAndSettle(grid, path, basePoints, isNewGoal ? `¡Meta ${floor + 1}!` : `Σ ${sum}`);
+      clearCellsAndSettle(grid, path, basePoints, label);
     },
-    [gameOver],
+    [gameOver, language],
   );
 
   // Recompensa del rewarded de game over: a diferencia de Encastralo (que
@@ -279,6 +349,7 @@ export function useEmbocaloGame(variant: Variant, language: SupportedLanguage) {
     setClearsCount(0);
     setFruitHighlight(0);
     setFoundWords([]);
+    setRowDropIntervalMs(ROW_DROP_INTERVAL_MS);
     if (!isLetters) setNextValue(rollInitial());
   }
 
@@ -295,7 +366,9 @@ export function useEmbocaloGame(variant: Variant, language: SupportedLanguage) {
     paused,
     togglePause,
     progress,
+    rowDropIntervalMs,
     popFeedback,
+    errorMessage,
     nextValue,
     rowPhase,
     numberFloor,

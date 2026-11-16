@@ -58,6 +58,9 @@ export interface Translation {
   goalsTitle: string;
   wordsListTitle: string;
   wordsListEmpty: string;
+  speedupMilestoneMessage: (count: number) => string;
+  duplicateWordMessage: (word: string) => string;
+  goalSpeedupMessage: (count: number) => string;
   numberGoalNext: (value: number) => string;
   numberGoalsComplete: string;
   pauseButtonLabel: string;
@@ -135,6 +138,9 @@ const es: Translation = {
   scoreLabel: "Puntos",
   wordsListTitle: "Palabras encontradas",
   wordsListEmpty: "Todavía no formaste ninguna palabra",
+  speedupMilestoneMessage: (count) => `¡Formaste ${count} palabras! -1s`,
+  duplicateWordMessage: (word) => `Ya usaste ${word}`,
+  goalSpeedupMessage: (count) => `¡Cumpliste ${count} metas! -1s`,
   hintFruits: "Arrastrá desde abajo para apuntar y soltá para disparar — un toque sin arrastrar tira derecho.",
   hintLetters: "Arrastrá el dedo sobre las letras conectadas para armar una palabra y soltá para borrarla.",
   hintNumbers: (floor) => `Arrastrá números conectados que sumen ${floor} o ${floor + 1} y soltá para borrarlos (${floor + 1} sube la meta).`,
@@ -225,6 +231,9 @@ const en: Translation = {
   scoreLabel: "Score",
   wordsListTitle: "Words found",
   wordsListEmpty: "You haven't spelled a word yet",
+  speedupMilestoneMessage: (count) => `You've spelled ${count} words! -1s`,
+  duplicateWordMessage: (word) => `You already used ${word}`,
+  goalSpeedupMessage: (count) => `You've reached ${count} goals! -1s`,
   hintFruits: "Drag from below to aim and release to fire — a tap without dragging shoots straight up.",
   hintLetters: "Drag your finger across connected letters to spell a word, release to clear it.",
   hintNumbers: (floor) => `Drag across connected numbers that add up to ${floor} or ${floor + 1} and release to clear them (${floor + 1} raises the goal).`,
@@ -315,6 +324,9 @@ const pt: Translation = {
   scoreLabel: "Pontos",
   wordsListTitle: "Palavras encontradas",
   wordsListEmpty: "Você ainda não formou nenhuma palavra",
+  speedupMilestoneMessage: (count) => `Você formou ${count} palavras! -1s`,
+  duplicateWordMessage: (word) => `Você já usou ${word}`,
+  goalSpeedupMessage: (count) => `Você cumpriu ${count} metas! -1s`,
   hintFruits: "Arraste a partir de baixo para apontar e solte para disparar — um toque sem arrastar dispara para cima.",
   hintLetters: "Arraste o dedo pelas letras conectadas para formar uma palavra e solte para apagá-la.",
   hintNumbers: (floor) => `Arraste por números conectados que somem ${floor} ou ${floor + 1} e solte para apagá-los (${floor + 1} sobe a meta).`,

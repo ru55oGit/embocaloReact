@@ -14,7 +14,7 @@ import HouseAdBanner from "../ads/HouseAdBanner";
 import RewardedAdModal from "../ads/RewardedAdModal";
 import { useRewardedAd } from "../ads/useRewardedAd";
 import { useEmbocaloGame } from "../hooks/useEmbocaloGame";
-import { NUMBER_GOAL_THRESHOLDS, rollingGoalWindow } from "../game/constants";
+import { NUMBER_GOAL_THRESHOLDS, ROW_DROP_CRITICAL_SEC, rollingGoalWindow } from "../game/constants";
 import { scoreForWord } from "../game/variants/words/words";
 import { Variant } from "../game/types";
 import { useLanguage } from "../i18n/LanguageContext";
@@ -177,6 +177,13 @@ function GamePlaying({ variant }: { variant: Variant }) {
     );
   }
 
+  // Segundos hasta que baje el techo — mismo dato que ya anima la barra de
+  // progreso, pero en número: sin esto no se notaba que, en letras, ese
+  // intervalo se va acortando de a poco con la partida (ver
+  // WORDS_PER_SPEEDUP en useEmbocaloGame).
+  const rowDropRemainingSec = Math.max(0, Math.ceil((game.rowDropIntervalMs * (1 - game.progress)) / 1000));
+  const rowDropCritical = rowDropRemainingSec <= ROW_DROP_CRITICAL_SEC;
+
   return (
     <Layout onBack={() => navigate("/")}>
       <Box sx={{ width: "100%", px: { xs: 1.5, md: 2 }, pb: 2, display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5 }}>
@@ -187,11 +194,29 @@ function GamePlaying({ variant }: { variant: Variant }) {
           <Typography sx={{ color: "rgba(255,255,255,0.85)", fontWeight: 700, fontSize: 14 }}>
             {t.scoreLabel}: {game.score}
           </Typography>
+          <Box sx={{
+            ml: "auto", display: "flex", alignItems: "center", gap: 0.5,
+            backgroundColor: rowDropCritical ? ACCENT : "#fff",
+            color: rowDropCritical ? "#fff" : ACCENT,
+            borderRadius: 999, px: 1.5, py: 0.5,
+            boxShadow: rowDropCritical ? "0 0 0 3px rgba(231,76,60,0.35)" : "0 2px 6px rgba(0,0,0,0.25)",
+            animation: rowDropCritical ? "embocalo-clock-pulse 1s ease-in-out infinite" : "none",
+            "@keyframes embocalo-clock-pulse": {
+              "0%, 100%": { transform: "scale(1)" },
+              "50%": { transform: "scale(1.08)" },
+            },
+            "@media (prefers-reduced-motion: reduce)": { animation: "none" },
+          }}>
+            <Typography component="span" sx={{ fontSize: 14 }}>⏱</Typography>
+            <Typography sx={{ fontWeight: 800, fontSize: 15, fontFamily: "monospace", lineHeight: 1 }}>
+              {rowDropRemainingSec}s
+            </Typography>
+          </Box>
           <IconButton
             onClick={game.togglePause}
             aria-label={game.paused ? t.resumeButtonLabel : t.pauseButtonLabel}
             sx={{
-              ml: "auto", width: 36, height: 36, color: "#fff", backgroundColor: "rgba(255,255,255,0.15)",
+              ml: 1, width: 36, height: 36, color: "#fff", backgroundColor: "rgba(255,255,255,0.15)",
               "&:hover": { backgroundColor: "rgba(255,255,255,0.25)" },
             }}
           >
